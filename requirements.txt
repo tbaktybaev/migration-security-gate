@@ -7,3 +7,12 @@ python-multipart==0.0.9
 pytest==8.3.2
 minio==7.2.10
 requests==2.32.3
+fastapi
+jinja2
+minio
+pydantic
+pytest
+python-multipart
+pyyaml
+requests
+uvicorn

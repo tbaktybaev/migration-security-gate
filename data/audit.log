@@ -74,3 +74,4 @@
 {"request_id":"4213eae6-5a98-47f2-8d2b-7484a00ab611","scenario":"T1","decision":"BLOCK","reasons":["CONFIG_HASH_MISMATCH"],"timestamp":"2026-01-18T04:36:00.495474+00:00"}
 {"request_id":"5b913f53-ee58-4cc0-bca5-a776e1ee2084","scenario":"T1","decision":"ALLOW","reasons":[],"timestamp":"2026-01-18T04:36:13.221629+00:00"}
 {"request_id":"43f5ad76-6312-4365-af4d-9d664b643ee4","scenario":"T2","decision":"ALLOW","reasons":[],"timestamp":"2026-01-18T04:36:43.967045+00:00"}
+{"request_id":"6d0201f8-22dd-45a5-9c0f-ddf7b70f84be","scenario":"T1","decision":"BLOCK","reasons":["CONFIG_HASH_MISMATCH"],"timestamp":"2026-01-18T04:40:41.658812+00:00"}
