@@ -1,0 +1,8 @@
+app_id: "billing"
+env: "prod"
+snapshot:
+  uri: "s3://mig-artifacts/ref/snapshot_ref_good.tar.gz"
+  sha256: "52db549d6c1fd744c9cfd97045d00b65634017a6aa224784b54636b931976960"
+sync_mode: "sync"
+policy_version: "2026.01"
+change_id: "CHG-REF-GOOD"

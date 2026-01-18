@@ -1,0 +1,5 @@
+tls:
+  enabled: true
+ports:
+  - 443
+secrets_ref: "vault://prod/app"

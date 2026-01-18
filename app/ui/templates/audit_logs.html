@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section>
+  <h2>Audit Logs</h2>
+  {% if logs %}
+  <table>
+    <thead>
+      <tr>
+        <th>Timestamp</th>
+        <th>Request ID</th>
+        <th>Scenario</th>
+        <th>Decision</th>
+        <th>Reasons</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for log in logs %}
+      <tr>
+        <td>{{ log.timestamp }}</td>
+        <td>{{ log.request_id }}</td>
+        <td>{{ log.scenario }}</td>
+        <td>{{ log.decision }}</td>
+        <td>{{ log.reasons | join(', ') }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p>No audit records found.</p>
+  {% endif %}
+</section>
+{% endblock %}

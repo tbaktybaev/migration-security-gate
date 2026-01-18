@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section>
+  <h2>Validate Replication (T2)</h2>
+  <form action="/ui/replication" method="post" enctype="multipart/form-data">
+    <div class="toggle-row">
+      <span>Upload Mode</span>
+      <label class="switch">
+        <input type="checkbox" id="mode-toggle" />
+        <span class="slider"></span>
+      </label>
+      <span>Reference Mode</span>
+      <input type="hidden" name="mode" id="mode-field" value="upload" />
+    </div>
+
+    <fieldset id="upload-fields">
+      <legend>Upload Mode</legend>
+      <label>replication_manifest.yaml
+        <input type="file" name="replication_manifest" id="upload-manifest" />
+      </label>
+      <label>snapshot.tar.gz
+        <input type="file" name="snapshot" id="upload-snapshot" />
+      </label>
+      <label>wal_files (optional)
+        <input type="file" name="wal_files" id="upload-wal" multiple />
+      </label>
+    </fieldset>
+
+    <fieldset id="reference-fields" class="hidden">
+      <legend>Reference Mode</legend>
+      <p>Paste mode is disabled. Upload a manifest file instead.</p>
+      <label>Upload manifest file
+        <input type="file" name="reference_manifest_file" id="reference-file" />
+      </label>
+    </fieldset>
+
+    <button type="submit">Validate</button>
+  </form>
+</section>
+
+{% if result %}
+<section class="result">
+  <h3>Decision: {{ result.decision }}</h3>
+  <p>Scenario: {{ result.scenario }}</p>
+  <p>Request ID: {{ result.request_id }}</p>
+  <p>Timestamp: {{ result.timestamp }}</p>
+  {% if result.reasons %}
+  <h4>Reasons</h4>
+  <ul>
+    {% for reason in result.reasons %}
+    <li>{{ reason.code }} — {{ reason.message }}</li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+  {% if result.artifacts and result.artifacts.computed_hashes %}
+  <h4>Computed Hashes</h4>
+  <p>Snapshot: {{ result.artifacts.computed_hashes.snapshot }}</p>
+  {% endif %}
+</section>
+{% endif %}
+
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    const toggle = document.getElementById("mode-toggle");
+    const modeField = document.getElementById("mode-field");
+    const uploadFields = document.getElementById("upload-fields");
+    const referenceFields = document.getElementById("reference-fields");
+
+    function syncMode() {
+      if (toggle.checked) {
+        modeField.value = "reference";
+        uploadFields.classList.add("hidden");
+        referenceFields.classList.remove("hidden");
+        uploadManifest.disabled = true;
+        uploadSnapshot.disabled = true;
+        uploadWal.disabled = true;
+        referenceFile.disabled = false;
+      } else {
+        modeField.value = "upload";
+        uploadFields.classList.remove("hidden");
+        referenceFields.classList.add("hidden");
+        uploadManifest.disabled = false;
+        uploadSnapshot.disabled = false;
+        uploadWal.disabled = false;
+        referenceFile.disabled = true;
+      }
+    }
+
+    const uploadManifest = document.getElementById("upload-manifest");
+    const uploadSnapshot = document.getElementById("upload-snapshot");
+    const uploadWal = document.getElementById("upload-wal");
+    const referenceFile = document.getElementById("reference-file");
+
+    toggle.addEventListener("change", syncMode);
+    syncMode();
+  });
+</script>
+{% endblock %}

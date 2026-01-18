@@ -1,0 +1,8 @@
+app_id: "billing"
+env: "prod"
+snapshot:
+  uri: "s3://mig-artifacts/ref/snapshot_ref_bad.tar.gz"
+  sha256: "deadbeef"
+sync_mode: "sync"
+policy_version: "2026.01"
+change_id: "CHG-REF-BAD"

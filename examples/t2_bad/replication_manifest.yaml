@@ -1,0 +1,4 @@
+source_db: "postgres://source-db"
+target_db: "postgres://target-db"
+expected_snapshot_hash: "deadbeef"
+sync_mode: "sync"

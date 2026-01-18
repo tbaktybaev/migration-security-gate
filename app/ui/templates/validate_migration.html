@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section>
+  <h2>Validate Migration (T1)</h2>
+  <form action="/ui/migration" method="post" enctype="multipart/form-data">
+    <label>migration_manifest.json
+      <input type="file" name="migration_manifest" required />
+    </label>
+    <label>app-config.yaml
+      <input type="file" name="app_config" required />
+    </label>
+    <button type="submit">Validate</button>
+  </form>
+</section>
+
+{% if result %}
+<section class="result">
+  <h3>Decision: {{ result.decision }}</h3>
+  <p>Scenario: {{ result.scenario }}</p>
+  <p>Request ID: {{ result.request_id }}</p>
+  <p>Timestamp: {{ result.timestamp }}</p>
+  {% if result.reasons %}
+  <h4>Reasons</h4>
+  <ul>
+    {% for reason in result.reasons %}
+    <li>{{ reason.code }} — {{ reason.message }}</li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+  {% if result.artifacts and result.artifacts.computed_hashes %}
+  <h4>Computed Hashes</h4>
+  <p>Config: {{ result.artifacts.computed_hashes.config }}</p>
+  {% endif %}
+</section>
+{% endif %}
+{% endblock %}

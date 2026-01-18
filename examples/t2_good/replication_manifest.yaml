@@ -1,0 +1,4 @@
+source_db: "postgres://source-db"
+target_db: "postgres://target-db"
+expected_snapshot_hash: "17c73c38984cca4ccf915fb115a1675c0b9bbbc3b8c7224438787a2d82ad47bf"
+sync_mode: "sync"

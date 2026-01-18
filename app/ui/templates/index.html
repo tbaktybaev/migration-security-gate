@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section>
+  <h2>Control Plane Console</h2>
+  <p>Use the menu to validate migration or replication artifacts, or review audit logs.</p>
+  <ul>
+    <li><a href="/ui/migration">Migration Validation (T1)</a></li>
+    <li><a href="/ui/replication">Replication Validation (T2)</a></li>
+    <li><a href="/ui/audit">Audit Logs</a></li>
+    <li><a href="/ui/alerts">Alerts (BLOCK)</a></li>
+  </ul>
+</section>
+{% endblock %}
