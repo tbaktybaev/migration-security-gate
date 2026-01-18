@@ -70,3 +70,7 @@
 {"request_id":"60b55cb4-d77a-4491-a6c2-fda2d257f8a1","scenario":"T2","decision":"BLOCK","reasons":["INVALID_MANIFEST"],"timestamp":"2026-01-18T04:05:21.342048+00:00"}
 {"request_id":"16d6c40a-e1e5-4cac-b404-0fcb09f8da0c","scenario":"T2","decision":"ALLOW","reasons":[],"timestamp":"2026-01-18T04:05:27.597090+00:00"}
 {"request_id":"884602d3-25b8-43a9-909b-1def9c0fd215","scenario":"T2","decision":"BLOCK","reasons":["SNAPSHOT_HASH_MISMATCH"],"timestamp":"2026-01-18T04:05:35.116909+00:00"}
+{"request_id":"5a96d768-9682-4270-b400-2d1d0455073d","scenario":"T2","decision":"BLOCK","reasons":["SNAPSHOT_HASH_MISMATCH"],"timestamp":"2026-01-18T04:35:16.922740+00:00"}
+{"request_id":"4213eae6-5a98-47f2-8d2b-7484a00ab611","scenario":"T1","decision":"BLOCK","reasons":["CONFIG_HASH_MISMATCH"],"timestamp":"2026-01-18T04:36:00.495474+00:00"}
+{"request_id":"5b913f53-ee58-4cc0-bca5-a776e1ee2084","scenario":"T1","decision":"ALLOW","reasons":[],"timestamp":"2026-01-18T04:36:13.221629+00:00"}
+{"request_id":"43f5ad76-6312-4365-af4d-9d664b643ee4","scenario":"T2","decision":"ALLOW","reasons":[],"timestamp":"2026-01-18T04:36:43.967045+00:00"}

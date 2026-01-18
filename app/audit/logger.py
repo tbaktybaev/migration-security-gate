@@ -5,14 +5,18 @@ from pathlib import Path
 from typing import Iterable, List, Optional
 
 from app.core.config import AUDIT_LOG_PATH
+from app.core.exceptions import AuditUnavailableError
 from app.core.models import AuditRecord
 
 
 def append_audit_record(record: AuditRecord) -> None:
     path = Path(AUDIT_LOG_PATH)
     path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("a", encoding="utf-8") as handle:
-        handle.write(_serialize_record(record) + "\n")
+    try:
+        with path.open("a", encoding="utf-8") as handle:
+            handle.write(_serialize_record(record) + "\n")
+    except OSError as exc:
+        raise AuditUnavailableError() from exc
 
 
 def read_audit_logs(
@@ -47,8 +51,11 @@ def read_audit_logs(
 def ensure_audit_log_ready() -> None:
     path = Path(AUDIT_LOG_PATH)
     path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("a", encoding="utf-8"):
-        return
+    try:
+        with path.open("a", encoding="utf-8"):
+            return
+    except OSError as exc:
+        raise AuditUnavailableError() from exc
 
 
 def _serialize_record(record: AuditRecord) -> str:

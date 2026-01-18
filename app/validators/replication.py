@@ -4,6 +4,7 @@ import yaml
 from pydantic import ValidationError
 
 from app.core.exceptions import MalformedInputError
+from app.core.logging import log_event
 from app.core.models import Artifacts, Reason, ReplicationManifest, ValidationOutcome
 from app.integrity.hashing import hash_bytes, hashes_match
 
@@ -16,6 +17,17 @@ def validate_replication(manifest_bytes: bytes, snapshot_bytes: bytes) -> Valida
     artifacts.computed_hashes.snapshot = computed_hash
 
     if not hashes_match(manifest.expected_snapshot_hash, computed_hash):
+        log_event(
+            request_id=None,
+            scenario="T2",
+            endpoint="/api/v1/validate/replication",
+            client=None,
+            decision="BLOCK",
+            reason_codes=["SNAPSHOT_HASH_MISMATCH"],
+            artifact_refs=[],
+            log_type="integrity",
+            level="WARN",
+        )
         return ValidationOutcome(
             decision="BLOCK",
             reasons=[
@@ -28,6 +40,17 @@ def validate_replication(manifest_bytes: bytes, snapshot_bytes: bytes) -> Valida
         )
 
     if manifest.sync_mode not in {"sync", "async"}:
+        log_event(
+            request_id=None,
+            scenario="T2",
+            endpoint="/api/v1/validate/replication",
+            client=None,
+            decision="BLOCK",
+            reason_codes=["UNSUPPORTED_SYNC_MODE"],
+            artifact_refs=[],
+            log_type="policy",
+            level="WARN",
+        )
         return ValidationOutcome(
             decision="BLOCK",
             reasons=[

@@ -103,7 +103,31 @@ Open in browser:
 
 ## Audit Logs
 
-Audit log file is stored at `data/audit.log` by default.
+Audit log file is stored at `AUDIT_LOG_PATH` (default: `/tmp/audit.log`).
+
+## Logging (Log Service, Variant A)
+
+Structured logs are emitted to stdout for every validation request.
+Each log entry includes: `timestamp`, `level`, `service`, `request_id`,
+`scenario`, `endpoint`, `decision`, `reason_codes`, `artifact_refs`, and `duration_ms`.
+
+Logical log streams are represented by `log_type`:
+- `audit` — decision summary
+- `integrity` — hash mismatch / artifact fetch failures
+- `policy` — auth/policy/manifest violations
+
+Filtering examples:
+
+```
+# by request_id
+grep "<request_id>" /tmp/audit.log
+
+# decision=BLOCK (stdout)
+kubectl logs deploy/security-gate -n <ns> | grep '"decision":"BLOCK"'
+
+# log_type=integrity (stdout)
+kubectl logs deploy/security-gate -n <ns> | grep '"log_type":"integrity"'
+```
 
 ## Tests
 

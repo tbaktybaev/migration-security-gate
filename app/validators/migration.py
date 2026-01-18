@@ -7,6 +7,7 @@ import yaml
 from pydantic import ValidationError
 
 from app.core.exceptions import MalformedInputError
+from app.core.logging import log_event
 from app.core.models import Artifacts, MigrationManifest, Reason, ValidationOutcome
 from app.integrity.hashing import hash_bytes, hashes_match
 from app.policies.policy_engine import evaluate_migration_policies
@@ -21,6 +22,17 @@ def validate_migration(manifest_bytes: bytes, config_bytes: bytes) -> Validation
     artifacts.computed_hashes.config = computed_hash
 
     if not hashes_match(manifest.config_sha256, computed_hash):
+        log_event(
+            request_id=None,
+            scenario="T1",
+            endpoint="/api/v1/validate/migration",
+            client=None,
+            decision="BLOCK",
+            reason_codes=["CONFIG_HASH_MISMATCH"],
+            artifact_refs=[],
+            log_type="integrity",
+            level="WARN",
+        )
         return ValidationOutcome(
             decision="BLOCK",
             reasons=[
@@ -33,6 +45,17 @@ def validate_migration(manifest_bytes: bytes, config_bytes: bytes) -> Validation
         )
 
     if manifest.env not in {"prod", "staging"}:
+        log_event(
+            request_id=None,
+            scenario="T1",
+            endpoint="/api/v1/validate/migration",
+            client=None,
+            decision="BLOCK",
+            reason_codes=["UNKNOWN_ENV"],
+            artifact_refs=[],
+            log_type="policy",
+            level="WARN",
+        )
         return ValidationOutcome(
             decision="BLOCK",
             reasons=[
@@ -46,6 +69,17 @@ def validate_migration(manifest_bytes: bytes, config_bytes: bytes) -> Validation
 
     policy_reasons = evaluate_migration_policies(manifest.env, config)
     if policy_reasons:
+        log_event(
+            request_id=None,
+            scenario="T1",
+            endpoint="/api/v1/validate/migration",
+            client=None,
+            decision="BLOCK",
+            reason_codes=[reason.code for reason in policy_reasons],
+            artifact_refs=[],
+            log_type="policy",
+            level="WARN",
+        )
         return ValidationOutcome(
             decision="BLOCK",
             reasons=policy_reasons,

@@ -23,3 +23,8 @@ class MalformedInputError(ApiError):
 class InternalError(ApiError):
     def __init__(self, message: str = "Internal server error") -> None:
         super().__init__(message=message, code="INTERNAL_ERROR", http_status=500)
+
+
+class AuditUnavailableError(ApiError):
+    def __init__(self, message: str = "Audit log unavailable") -> None:
+        super().__init__(message=message, code="AUDIT_UNAVAILABLE", http_status=500)
