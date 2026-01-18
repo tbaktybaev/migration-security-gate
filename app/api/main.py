@@ -3,10 +3,12 @@ from __future__ import annotations
 from typing import List, Optional
 from uuid import uuid4
 
-from fastapi import FastAPI, File, Form, Header, Request, UploadFile
+from fastapi import FastAPI, File, Form, Header, Request, Response, UploadFile
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from prometheus_client import Counter, Histogram, generate_latest
+from prometheus_client.exposition import CONTENT_TYPE_LATEST
 
 from app.audit.logger import append_audit_record, ensure_audit_log_ready, read_audit_logs
 from app.core.exceptions import ApiError, AuditUnavailableError, InternalError, MalformedInputError
@@ -22,6 +24,17 @@ from app.validators.replication_ref import validate_replication_reference
 app = FastAPI(title="Migration Security Gate", version="1.0.0")
 app.mount("/static", StaticFiles(directory="app/ui/static"), name="static")
 templates = Jinja2Templates(directory="app/ui/templates")
+
+REQUEST_COUNT = Counter(
+    "security_gate_requests_total",
+    "Total validation requests",
+    ["endpoint", "decision", "scenario"],
+)
+REQUEST_LATENCY = Histogram(
+    "security_gate_request_duration_seconds",
+    "Request latency in seconds",
+    ["endpoint"],
+)
 
 
 @app.middleware("http")
@@ -39,8 +52,14 @@ async def request_summary_logger(request: Request, call_next):
     response = await call_next(request)
     try:
         duration_ms = int((time.time() - start) * 1000)
+        REQUEST_LATENCY.labels(endpoint=str(request.url.path)).observe(duration_ms / 1000.0)
         decision = getattr(request.state, "decision", None)
         if decision:
+            REQUEST_COUNT.labels(
+                endpoint=str(request.url.path),
+                decision=decision,
+                scenario=getattr(request.state, "scenario", "T1"),
+            ).inc()
             log_request_summary(
                 request_id=request_id,
                 scenario=getattr(request.state, "scenario", "T1"),
@@ -56,6 +75,21 @@ async def request_summary_logger(request: Request, call_next):
     except Exception:
         pass
     return response
+
+
+@app.get("/healthz")
+async def healthz() -> dict:
+    return {"status": "ok"}
+
+
+@app.get("/readyz")
+async def readyz() -> dict:
+    return {"status": "ok"}
+
+
+@app.get("/metrics")
+async def metrics():
+    return Response(content=generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
 
 @app.exception_handler(ApiError)

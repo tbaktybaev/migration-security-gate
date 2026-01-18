@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: security-gate
+  namespace: migsec
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: security-gate
+  template:
+    metadata:
+      labels:
+        app: security-gate
+    spec:
+      containers:
+        - name: security-gate
+          image: security-gate:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8000
+          envFrom:
+            - configMapRef:
+                name: security-gate-config
+            - secretRef:
+                name: security-gate-secrets
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8000
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          volumeMounts:
+            - name: audit-data
+              mountPath: /app/data
+      volumes:
+        - name: audit-data
+          persistentVolumeClaim:
+            claimName: security-gate-audit-pvc

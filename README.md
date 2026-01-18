@@ -140,3 +140,52 @@ pytest -q
 ```
 make integration-test
 ```
+
+## Kubernetes (minikube) quickstart
+
+1. Start minikube:
+
+```
+make minikube-start
+```
+
+2. Deploy security-gate and minio:
+
+```
+eval $(minikube docker-env)
+docker build -t security-gate:latest .
+make deploy
+```
+
+3. Install monitoring stack and ServiceMonitor:
+
+```
+make monitoring
+```
+
+4. Port-forward local access:
+
+```
+make port-forward
+```
+
+5. Run smoke tests:
+
+```
+make smoke
+```
+
+6. Collect evidence for report:
+
+```
+make evidence
+```
+
+### Evidence checklist (screenshots/outputs)
+- `kubectl get pods -n migsec`
+- `kubectl get pods -n monitoring`
+- `kubectl get svc -n migsec`
+- `kubectl get svc -n monitoring`
+- Prometheus Targets showing `security-gate` UP
+- Grafana dashboard page
+- `make smoke` output

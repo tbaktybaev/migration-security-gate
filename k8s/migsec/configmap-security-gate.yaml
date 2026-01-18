@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: security-gate-config
+  namespace: migsec
+data:
+  MINIO_ENDPOINT: "http://minio.migsec.svc.cluster.local:9000"
+  MINIO_BUCKET: "mig-artifacts"
+  AUDIT_LOG_PATH: "/app/data/audit.log"
+  MINIO_SECURE: "false"
