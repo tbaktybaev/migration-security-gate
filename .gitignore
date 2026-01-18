@@ -28,3 +28,4 @@ htmlcov/
 *.log
 .env
 .pythonlibs/
+data/
