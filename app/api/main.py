@@ -10,7 +10,7 @@ from fastapi.templating import Jinja2Templates
 
 from app.audit.logger import append_audit_record, ensure_audit_log_ready, read_audit_logs
 from app.core.exceptions import ApiError, AuditUnavailableError, InternalError, MalformedInputError
-from app.core.logging import log_request_summary
+from app.core.logging import log_request_summary, set_request_context, update_request_context
 from app.core.models import Artifacts, AuditRecord, Reason, ValidationOutcome, ValidationResult
 from app.core.security import verify_bearer_token
 from app.core.utils import utc_timestamp
@@ -26,21 +26,23 @@ templates = Jinja2Templates(directory="app/ui/templates")
 
 @app.middleware("http")
 async def request_summary_logger(request: Request, call_next):
-    start = request.scope.get("_start_time")
-    if start is None:
-        import time
+    import time
 
-        start = time.time()
-        request.scope["_start_time"] = start
+    request_id = str(uuid4())
+    request.state.request_id = request_id
+    set_request_context(
+        request_id=request_id,
+        endpoint=str(request.url.path),
+        client=request.headers.get("user-agent"),
+    )
+    start = time.time()
     response = await call_next(request)
     try:
-        import time
-
         duration_ms = int((time.time() - start) * 1000)
         decision = getattr(request.state, "decision", None)
         if decision:
             log_request_summary(
-                request_id=getattr(request.state, "request_id", "unknown"),
+                request_id=request_id,
                 scenario=getattr(request.state, "scenario", "T1"),
                 endpoint=str(request.url.path),
                 client=request.headers.get("user-agent"),
@@ -48,8 +50,8 @@ async def request_summary_logger(request: Request, call_next):
                 reason_codes=getattr(request.state, "reason_codes", []),
                 artifact_refs=getattr(request.state, "artifact_refs", []),
                 duration_ms=duration_ms,
-                log_type=getattr(request.state, "log_type", "audit"),
-                level=getattr(request.state, "level", "INFO"),
+                log_type="audit",
+                level="WARN" if decision == "BLOCK" else "INFO",
             )
     except Exception:
         pass
@@ -64,9 +66,10 @@ async def handle_api_error(request: Request, exc: ApiError) -> JSONResponse:
         scenario=scenario,
         reasons=[Reason(code=exc.code, message=exc.message)],
         artifacts=None,
+        request_id=getattr(request.state, "request_id", None),
     )
     _attach_request_state(request, result, endpoint=request.url.path, artifact_refs=[])
-    _log_result(result)
+    _log_result(result, request=request)
     return JSONResponse(status_code=exc.http_status, content=_serialize_result(result))
 
 
@@ -78,9 +81,10 @@ async def handle_unexpected_error(request: Request, exc: Exception) -> JSONRespo
         scenario=scenario,
         reasons=[Reason(code="INTERNAL_ERROR", message="Internal server error")],
         artifacts=None,
+        request_id=getattr(request.state, "request_id", None),
     )
     _attach_request_state(request, result, endpoint=request.url.path, artifact_refs=[])
-    _log_result(result)
+    _log_result(result, request=request)
     return JSONResponse(status_code=500, content=_serialize_result(result))
 
 
@@ -92,19 +96,24 @@ async def validate_migration_endpoint(
     app_config: UploadFile = File(...),
 ) -> ValidationResult:
     request.state.scenario = "T1"
+    update_request_context(scenario="T1")
     _require_audit_ready()
     verify_bearer_token(authorization)
     manifest_bytes = await migration_manifest.read()
     config_bytes = await app_config.read()
+    update_request_context(
+        scenario="T1",
+        artifact_refs=[migration_manifest.filename or "migration_manifest", app_config.filename or "app_config"],
+    )
     outcome = validate_migration(manifest_bytes, config_bytes)
-    result = _result_from_outcome(outcome, scenario="T1")
+    result = _result_from_outcome(outcome, scenario="T1", request_id=request.state.request_id)
     _attach_request_state(
         request,
         result,
         endpoint=str(request.url.path),
         artifact_refs=[migration_manifest.filename or "migration_manifest", app_config.filename or "app_config"],
     )
-    _log_result(result)
+    _log_result(result, request=request)
     return result
 
 
@@ -117,19 +126,24 @@ async def validate_replication_endpoint(
     wal_files: List[UploadFile] | None = File(default=None),
 ) -> ValidationResult:
     request.state.scenario = "T2"
+    update_request_context(scenario="T2")
     _require_audit_ready()
     verify_bearer_token(authorization)
     manifest_bytes = await replication_manifest.read()
     snapshot_bytes = await snapshot.read()
+    update_request_context(
+        scenario="T2",
+        artifact_refs=[replication_manifest.filename or "replication_manifest", snapshot.filename or "snapshot"],
+    )
     outcome = validate_replication(manifest_bytes, snapshot_bytes)
-    result = _result_from_outcome(outcome, scenario="T2")
+    result = _result_from_outcome(outcome, scenario="T2", request_id=request.state.request_id)
     _attach_request_state(
         request,
         result,
         endpoint=str(request.url.path),
         artifact_refs=[replication_manifest.filename or "replication_manifest", snapshot.filename or "snapshot"],
     )
-    _log_result(result)
+    _log_result(result, request=request)
     return result
 
 
@@ -139,18 +153,20 @@ async def validate_replication_reference_endpoint(
     authorization: str | None = Header(default=None),
 ) -> ValidationResult:
     request.state.scenario = "T2"
+    update_request_context(scenario="T2")
     _require_audit_ready()
     verify_bearer_token(authorization)
     manifest_bytes = await request.body()
+    update_request_context(scenario="T2", artifact_refs=_extract_ref_artifacts(manifest_bytes))
     outcome = validate_replication_reference(manifest_bytes)
-    result = _result_from_outcome(outcome, scenario="T2")
+    result = _result_from_outcome(outcome, scenario="T2", request_id=request.state.request_id)
     _attach_request_state(
         request,
         result,
         endpoint=str(request.url.path),
         artifact_refs=_extract_ref_artifacts(manifest_bytes),
     )
-    _log_result(result)
+    _log_result(result, request=request)
     return result
 
 
@@ -183,24 +199,29 @@ async def ui_migration_submit(
         _require_audit_ready()
         manifest_bytes = await migration_manifest.read()
         config_bytes = await app_config.read()
+        update_request_context(
+            scenario="T1",
+            artifact_refs=[migration_manifest.filename or "migration_manifest", app_config.filename or "app_config"],
+        )
         outcome = validate_migration(manifest_bytes, config_bytes)
-        result = _result_from_outcome(outcome, scenario="T1")
+        result = _result_from_outcome(outcome, scenario="T1", request_id=request.state.request_id)
         _attach_request_state(
             request,
             result,
             endpoint=str(request.url.path),
             artifact_refs=[migration_manifest.filename or "migration_manifest", app_config.filename or "app_config"],
         )
-        _log_result(result)
+        _log_result(result, request=request)
     except ApiError as exc:
         result = _build_result(
             decision="BLOCK",
             scenario="T1",
             reasons=[Reason(code=exc.code, message=exc.message)],
             artifacts=None,
+            request_id=getattr(request.state, "request_id", None),
         )
         _attach_request_state(request, result, endpoint=str(request.url.path), artifact_refs=[])
-        _log_result(result)
+        _log_result(result, request=request)
     return templates.TemplateResponse("validate_migration.html", {"request": request, "result": result})
 
 
@@ -231,30 +252,37 @@ async def ui_replication_submit(
                 manifest_bytes = await reference_manifest_file.read()
             else:
                 manifest_bytes = (reference_manifest or "").encode("utf-8")
+            update_request_context(scenario="T2", artifact_refs=_extract_ref_artifacts(manifest_bytes))
             outcome = validate_replication_reference(manifest_bytes)
         else:
             if replication_manifest is None or snapshot is None:
                 raise MalformedInputError("replication manifest and snapshot are required", "INVALID_MANIFEST")
             manifest_bytes = await replication_manifest.read()
             snapshot_bytes = await snapshot.read()
+            update_request_context(
+                scenario="T2",
+                artifact_refs=[replication_manifest.filename or "replication_manifest", snapshot.filename or "snapshot"],
+            )
             outcome = validate_replication(manifest_bytes, snapshot_bytes)
-        result = _result_from_outcome(outcome, scenario="T2")
+        result = _result_from_outcome(outcome, scenario="T2", request_id=request.state.request_id)
         _attach_request_state(
             request,
             result,
             endpoint=str(request.url.path),
-            artifact_refs=_ui_artifact_refs(mode, replication_manifest, snapshot, reference_manifest_file),
+            artifact_refs=_ui_artifact_refs(mode, replication_manifest, snapshot, reference_manifest_file, manifest_bytes),
+            policy_version=_extract_ref_policy_version(manifest_bytes) if mode == "reference" else None,
         )
-        _log_result(result)
+        _log_result(result, request=request)
     except ApiError as exc:
         result = _build_result(
             decision="BLOCK",
             scenario="T2",
             reasons=[Reason(code=exc.code, message=exc.message)],
             artifacts=None,
+            request_id=getattr(request.state, "request_id", None),
         )
         _attach_request_state(request, result, endpoint=str(request.url.path), artifact_refs=[])
-        _log_result(result)
+        _log_result(result, request=request)
     return templates.TemplateResponse("validate_replication.html", {"request": request, "result": result})
 
 
@@ -270,12 +298,13 @@ async def ui_alerts(request: Request):
     return templates.TemplateResponse("alerts.html", {"request": request, "logs": logs})
 
 
-def _result_from_outcome(outcome: ValidationOutcome, scenario: str) -> ValidationResult:
+def _result_from_outcome(outcome: ValidationOutcome, scenario: str, request_id: str | None) -> ValidationResult:
     return _build_result(
         decision=outcome.decision,
         scenario=scenario,
         reasons=outcome.reasons,
         artifacts=outcome.artifacts,
+        request_id=request_id,
     )
 
 
@@ -284,9 +313,10 @@ def _build_result(
     scenario: str,
     reasons: List[Reason],
     artifacts: Optional[object],
+    request_id: str | None = None,
 ) -> ValidationResult:
     return ValidationResult(
-        request_id=str(uuid4()),
+        request_id=request_id or str(uuid4()),
         decision=decision,
         scenario=scenario,
         reasons=reasons,
@@ -301,13 +331,16 @@ def _serialize_result(result: ValidationResult) -> dict:
     return result.dict()
 
 
-def _log_result(result: ValidationResult) -> None:
+def _log_result(result: ValidationResult, request: Request | None = None) -> None:
     record = AuditRecord(
         request_id=result.request_id,
         scenario=result.scenario,
         decision=result.decision,
         reasons=[reason.code for reason in result.reasons],
         timestamp=result.timestamp,
+        endpoint=getattr(request.state, "endpoint", None) if request else None,
+        artifact_refs=getattr(request.state, "artifact_refs", []) if request else [],
+        policy_version=getattr(request.state, "policy_version", None) if request else None,
     )
     append_audit_record(record)
 
@@ -325,25 +358,21 @@ def _attach_request_state(
     *,
     endpoint: str,
     artifact_refs: list[str],
+    policy_version: str | None = None,
 ) -> None:
-    request.state.request_id = result.request_id
+    request.state.request_id = getattr(request.state, "request_id", result.request_id)
     request.state.scenario = result.scenario
     request.state.decision = result.decision
     request.state.reason_codes = [reason.code for reason in result.reasons]
     request.state.endpoint = endpoint
     request.state.artifact_refs = artifact_refs
-    request.state.log_type = _log_type_for_reasons(result.reasons)
-    request.state.level = "WARN" if result.decision == "BLOCK" else "INFO"
-
-
-def _log_type_for_reasons(reasons: list[Reason]) -> str:
-    integrity_codes = {"CONFIG_HASH_MISMATCH", "SNAPSHOT_HASH_MISMATCH", "WAL_HASH_MISMATCH", "ARTIFACT_FETCH_FAILED"}
-    policy_codes = {"TLS_DISABLED_PROD", "PUBLIC_PORT_EXPOSED", "SECRETS_REF_MISSING", "SECRETS_INLINE", "AUTH_FAILED", "INVALID_MANIFEST", "AUDIT_UNAVAILABLE"}
-    if any(reason.code in integrity_codes for reason in reasons):
-        return "integrity"
-    if any(reason.code in policy_codes for reason in reasons):
-        return "policy"
-    return "audit"
+    request.state.policy_version = policy_version
+    update_request_context(
+        scenario=result.scenario,
+        endpoint=endpoint,
+        artifact_refs=artifact_refs,
+        policy_version=policy_version,
+    )
 
 
 def _extract_ref_artifacts(manifest_bytes: bytes) -> list[str]:
@@ -365,14 +394,32 @@ def _extract_ref_artifacts(manifest_bytes: bytes) -> list[str]:
     return []
 
 
+def _extract_ref_policy_version(manifest_bytes: bytes) -> str | None:
+    try:
+        import yaml
+
+        parsed = yaml.safe_load(manifest_bytes.decode("utf-8"))
+        if isinstance(parsed, dict):
+            value = parsed.get("policy_version")
+            return value if isinstance(value, str) else None
+    except Exception:
+        return None
+    return None
+
+
 def _ui_artifact_refs(
     mode: str,
     replication_manifest: UploadFile | None,
     snapshot: UploadFile | None,
     reference_manifest_file: UploadFile | None,
+    manifest_bytes: bytes | None,
 ) -> list[str]:
     if mode == "reference":
-        return [reference_manifest_file.filename] if reference_manifest_file else ["reference_manifest"]
+        refs = []
+        if reference_manifest_file and reference_manifest_file.filename:
+            refs.append(reference_manifest_file.filename)
+        refs.extend(_extract_ref_artifacts(manifest_bytes or b""))
+        return refs if refs else ["reference_manifest"]
     refs = []
     if replication_manifest:
         refs.append(replication_manifest.filename or "replication_manifest")

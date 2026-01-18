@@ -16,13 +16,9 @@ def validate_replication_reference(manifest_bytes: bytes) -> ValidationOutcome:
 
     if manifest.env not in {"prod", "staging"}:
         log_event(
-            request_id=None,
-            scenario="T2",
-            endpoint="/api/v1/validate/replication/ref",
-            client=None,
             decision="BLOCK",
             reason_codes=["INVALID_MANIFEST"],
-            artifact_refs=[manifest.snapshot.uri],
+            artifact_refs=None,
             log_type="policy",
             level="WARN",
         )
@@ -34,13 +30,9 @@ def validate_replication_reference(manifest_bytes: bytes) -> ValidationOutcome:
 
     if manifest.sync_mode not in {"sync", "async"}:
         log_event(
-            request_id=None,
-            scenario="T2",
-            endpoint="/api/v1/validate/replication/ref",
-            client=None,
             decision="BLOCK",
             reason_codes=["INVALID_MANIFEST"],
-            artifact_refs=[manifest.snapshot.uri],
+            artifact_refs=None,
             log_type="policy",
             level="WARN",
         )
@@ -54,13 +46,9 @@ def validate_replication_reference(manifest_bytes: bytes) -> ValidationOutcome:
         parse_s3_uri(manifest.snapshot.uri)
     except ValueError as exc:
         log_event(
-            request_id=None,
-            scenario="T2",
-            endpoint="/api/v1/validate/replication/ref",
-            client=None,
             decision="BLOCK",
             reason_codes=["INVALID_MANIFEST"],
-            artifact_refs=[manifest.snapshot.uri],
+            artifact_refs=None,
             log_type="policy",
             level="WARN",
         )
@@ -74,13 +62,9 @@ def validate_replication_reference(manifest_bytes: bytes) -> ValidationOutcome:
         snapshot_bytes = fetch_s3_object(manifest.snapshot.uri)
     except Exception:
         log_event(
-            request_id=None,
-            scenario="T2",
-            endpoint="/api/v1/validate/replication/ref",
-            client=None,
             decision="BLOCK",
             reason_codes=["ARTIFACT_FETCH_FAILED"],
-            artifact_refs=[manifest.snapshot.uri],
+            artifact_refs=None,
             log_type="integrity",
             level="WARN",
         )
@@ -94,13 +78,9 @@ def validate_replication_reference(manifest_bytes: bytes) -> ValidationOutcome:
     artifacts.computed_hashes.snapshot = snapshot_hash
     if not hashes_match(manifest.snapshot.sha256, snapshot_hash):
         log_event(
-            request_id=None,
-            scenario="T2",
-            endpoint="/api/v1/validate/replication/ref",
-            client=None,
             decision="BLOCK",
             reason_codes=["SNAPSHOT_HASH_MISMATCH"],
-            artifact_refs=[manifest.snapshot.uri],
+            artifact_refs=None,
             log_type="integrity",
             level="WARN",
         )
@@ -120,13 +100,9 @@ def validate_replication_reference(manifest_bytes: bytes) -> ValidationOutcome:
             parse_s3_uri(manifest.wal.uri)
         except ValueError as exc:
             log_event(
-                request_id=None,
-                scenario="T2",
-                endpoint="/api/v1/validate/replication/ref",
-                client=None,
                 decision="BLOCK",
                 reason_codes=["INVALID_MANIFEST"],
-                artifact_refs=[manifest.wal.uri],
+                artifact_refs=None,
                 log_type="policy",
                 level="WARN",
             )
@@ -139,13 +115,9 @@ def validate_replication_reference(manifest_bytes: bytes) -> ValidationOutcome:
             wal_bytes = fetch_s3_object(manifest.wal.uri)
         except Exception:
             log_event(
-                request_id=None,
-                scenario="T2",
-                endpoint="/api/v1/validate/replication/ref",
-                client=None,
                 decision="BLOCK",
                 reason_codes=["ARTIFACT_FETCH_FAILED"],
-                artifact_refs=[manifest.wal.uri],
+                artifact_refs=None,
                 log_type="integrity",
                 level="WARN",
             )
@@ -157,13 +129,9 @@ def validate_replication_reference(manifest_bytes: bytes) -> ValidationOutcome:
         wal_hash = hash_bytes(wal_bytes)
         if not hashes_match(manifest.wal.sha256, wal_hash):
             log_event(
-                request_id=None,
-                scenario="T2",
-                endpoint="/api/v1/validate/replication/ref",
-                client=None,
                 decision="BLOCK",
                 reason_codes=["WAL_HASH_MISMATCH"],
-                artifact_refs=[manifest.wal.uri],
+                artifact_refs=None,
                 log_type="integrity",
                 level="WARN",
             )
