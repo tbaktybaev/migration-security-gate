@@ -22,24 +22,16 @@ kubectl -n migsec port-forward svc/minio 9000:9000 >/dev/null 2>&1 &
 PORT_FORWARD_PID=$!
 sleep 2
 
-python - <<'PY'
-import os
-from minio import Minio
+if ! command -v mc >/dev/null 2>&1; then
+  echo "Missing required command: mc (MinIO client)" >&2
+  echo "Install via: brew install minio/stable/mc" >&2
+  exit 1
+fi
 
-endpoint = os.getenv("MINIO_ENDPOINT", "http://localhost:9000")
-access_key = os.getenv("MINIO_ACCESS_KEY", "minioadmin")
-secret_key = os.getenv("MINIO_SECRET_KEY", "minioadmin")
-bucket = os.getenv("MINIO_BUCKET", "mig-artifacts")
-secure = endpoint.startswith("https://")
-endpoint = endpoint.replace("http://", "").replace("https://", "")
-
-client = Minio(endpoint, access_key=access_key, secret_key=secret_key, secure=secure)
-if not client.bucket_exists(bucket):
-    client.make_bucket(bucket)
-
-client.fput_object(bucket, "ref/snapshot_ref_good.tar.gz", "examples/t2_ref_good/snapshot_ref_good.tar.gz")
-client.fput_object(bucket, "ref/snapshot_ref_bad.tar.gz", "examples/t2_ref_bad/snapshot_ref_bad.tar.gz")
-PY
+mc alias set local "$MINIO_ENDPOINT" "$MINIO_ACCESS_KEY" "$MINIO_SECRET_KEY" >/dev/null
+mc mb --ignore-existing local/"$MINIO_BUCKET" >/dev/null
+mc cp examples/t2_ref_good/snapshot_ref_good.tar.gz local/"$MINIO_BUCKET"/ref/snapshot_ref_good.tar.gz >/dev/null
+mc cp examples/t2_ref_bad/snapshot_ref_bad.tar.gz local/"$MINIO_BUCKET"/ref/snapshot_ref_bad.tar.gz >/dev/null
 
 python - <<'PY'
 import json

@@ -8,6 +8,6 @@ for cmd in minikube kubectl docker; do
   fi
 done
 
-minikube start --cpus=4 --memory=8192 --disk-size=30g --driver=docker
+minikube start --cpus=4 --memory=5096 --disk-size=20g --driver=docker
 
 minikube status

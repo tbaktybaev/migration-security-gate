@@ -17,6 +17,7 @@ helm upgrade --install kube-prometheus-stack prometheus-community/kube-prometheu
 kubectl -n monitoring rollout status deployment/kube-prometheus-stack-operator --timeout=120s || true
 
 kubectl apply -f k8s/monitoring/servicemonitor-security-gate.yaml
+kubectl apply -f k8s/monitoring/grafana-dashboard-security-gate.yaml
 
 echo "Grafana: kubectl -n monitoring port-forward svc/kube-prometheus-stack-grafana 3000:80"
 echo "Prometheus: kubectl -n monitoring port-forward svc/kube-prometheus-stack-prometheus 9090:9090"

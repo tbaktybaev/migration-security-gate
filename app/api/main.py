@@ -35,6 +35,11 @@ REQUEST_LATENCY = Histogram(
     "Request latency in seconds",
     ["endpoint"],
 )
+BLOCK_COUNT = Counter(
+    "security_gate_blocks_total",
+    "Total BLOCK decisions by reason code",
+    ["reason_code", "scenario", "endpoint"],
+)
 
 
 @app.middleware("http")
@@ -377,6 +382,14 @@ def _log_result(result: ValidationResult, request: Request | None = None) -> Non
         policy_version=getattr(request.state, "policy_version", None) if request else None,
     )
     append_audit_record(record)
+    if result.decision == "BLOCK":
+        endpoint = getattr(request.state, "endpoint", "") if request else ""
+        for reason in result.reasons:
+            BLOCK_COUNT.labels(
+                reason_code=reason.code,
+                scenario=result.scenario,
+                endpoint=endpoint,
+            ).inc()
 
 
 def _require_audit_ready() -> None:
