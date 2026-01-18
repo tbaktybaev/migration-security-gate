@@ -18,13 +18,9 @@ def validate_replication(manifest_bytes: bytes, snapshot_bytes: bytes) -> Valida
 
     if not hashes_match(manifest.expected_snapshot_hash, computed_hash):
         log_event(
-            request_id=None,
-            scenario="T2",
-            endpoint="/api/v1/validate/replication",
-            client=None,
             decision="BLOCK",
             reason_codes=["SNAPSHOT_HASH_MISMATCH"],
-            artifact_refs=[],
+            artifact_refs=None,
             log_type="integrity",
             level="WARN",
         )
@@ -41,13 +37,9 @@ def validate_replication(manifest_bytes: bytes, snapshot_bytes: bytes) -> Valida
 
     if manifest.sync_mode not in {"sync", "async"}:
         log_event(
-            request_id=None,
-            scenario="T2",
-            endpoint="/api/v1/validate/replication",
-            client=None,
             decision="BLOCK",
             reason_codes=["UNSUPPORTED_SYNC_MODE"],
-            artifact_refs=[],
+            artifact_refs=None,
             log_type="policy",
             level="WARN",
         )

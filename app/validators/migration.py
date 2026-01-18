@@ -23,13 +23,9 @@ def validate_migration(manifest_bytes: bytes, config_bytes: bytes) -> Validation
 
     if not hashes_match(manifest.config_sha256, computed_hash):
         log_event(
-            request_id=None,
-            scenario="T1",
-            endpoint="/api/v1/validate/migration",
-            client=None,
             decision="BLOCK",
             reason_codes=["CONFIG_HASH_MISMATCH"],
-            artifact_refs=[],
+            artifact_refs=None,
             log_type="integrity",
             level="WARN",
         )
@@ -46,13 +42,9 @@ def validate_migration(manifest_bytes: bytes, config_bytes: bytes) -> Validation
 
     if manifest.env not in {"prod", "staging"}:
         log_event(
-            request_id=None,
-            scenario="T1",
-            endpoint="/api/v1/validate/migration",
-            client=None,
             decision="BLOCK",
             reason_codes=["UNKNOWN_ENV"],
-            artifact_refs=[],
+            artifact_refs=None,
             log_type="policy",
             level="WARN",
         )
@@ -70,13 +62,9 @@ def validate_migration(manifest_bytes: bytes, config_bytes: bytes) -> Validation
     policy_reasons = evaluate_migration_policies(manifest.env, config)
     if policy_reasons:
         log_event(
-            request_id=None,
-            scenario="T1",
-            endpoint="/api/v1/validate/migration",
-            client=None,
             decision="BLOCK",
             reason_codes=[reason.code for reason in policy_reasons],
-            artifact_refs=[],
+            artifact_refs=None,
             log_type="policy",
             level="WARN",
         )

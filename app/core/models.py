@@ -65,6 +65,9 @@ class AuditRecord(BaseModel):
     decision: str
     reasons: List[str]
     timestamp: str
+    endpoint: Optional[str] = None
+    artifact_refs: List[str] = Field(default_factory=list)
+    policy_version: Optional[str] = None
 
 
 @dataclass(frozen=True)
